@@ -1,0 +1,53 @@
+upstream unicorn<%= application %> {
+  server unix:/tmp/unicorn.<%= application %>.sock fail_timeout=0;
+}
+
+server {
+  listen 80<%= is_default ? " default deferred" : "" %>;
+  <% if setup_ssl %>
+  listen 443 ssl<%= is_default ? " default deferred" : "" %>;
+  ssl_certificate <%= shared_path %>/<%= ssl_cert %>;
+  ssl_certificate_key <%= shared_path %>/<%= ssl_cert_key %>;
+  <% end %>
+  server_name .<%= server_names %>;
+  root <%= current_path %>/public;
+
+  # Prevent attack from bots trying to access setup.php and other non-existing php stuff
+  # Aditya 23rd July 2011: Added after scanning rails log for routing errors.
+  # We just need to ensure that none of our own URLS end in .php
+  location ~* \.php$ {
+    internal;
+  }
+  # Prevention of lots of Blog scoping attacks from China
+  location ~* (blogs|add-blog) {
+    internal;
+  }
+  # Block access to paths containing .svn
+  location ~* ^.*\.svn.*$ {
+    internal;
+  }
+  location ~ ^/assets/ {
+    gzip_static on;
+    expires max;
+    add_header Cache-Control public;
+    add_header Access-Control-Allow-Origin *;
+  }
+
+  try_files $uri/index.html $uri @unicorn<%= application %>;
+  location @unicorn<%= application %> {
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_redirect off;
+    proxy_pass http://unicorn<%= application %>;
+  }
+
+  error_page 500 502 503 504 /500.html;
+  client_max_body_size 15M;
+  keepalive_timeout 10;
+
+  location = /500.html {
+    root <%= deploy_to%>/current/public;
+  }
+
+}

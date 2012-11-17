@@ -1,0 +1,13 @@
+# Logrotate config for <%= application %>
+# Generated at <%= Time.now.strftime("%d.%m.%Y, %H:%M") %>
+<%= shared_path %>/log/<%= rails_env %>.log {
+  daily
+  missingok
+  rotate 36500
+  compress
+  delaycompress
+  sharedscripts
+  dateext
+  olddir <%= shared_path %>/log/old
+  copytruncate
+}
